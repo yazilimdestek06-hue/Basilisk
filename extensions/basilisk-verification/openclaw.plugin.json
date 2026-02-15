@@ -1,0 +1,15 @@
+{
+  "id": "basilisk-verification",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiBase": { "type": "string", "default": "https://basilisk-api.fly.dev" },
+      "fileStoragePath": { "type": "string", "default": "D:/basilisk-files" },
+      "pollIntervalMs": { "type": "number", "default": 30000 },
+      "maxConcurrentJobs": { "type": "number", "default": 8 },
+      "sandboxMemory": { "type": "string", "default": "2g" },
+      "sandboxCpus": { "type": "string", "default": "2" },
+      "sandboxTimeoutSec": { "type": "number", "default": 60 }
+    }
+  }
+}

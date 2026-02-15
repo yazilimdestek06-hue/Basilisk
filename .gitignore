@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+dist/
+
+# Secrets
+.env
+*.pem
+*.key
+
+# Logs
+logs/
+
+# IDE / Tools
+.claude/
+
+# OpenClaw gateway (separate repo - see README for setup)
+openclaw/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Temp files
+*.tmp
+_tmp/
