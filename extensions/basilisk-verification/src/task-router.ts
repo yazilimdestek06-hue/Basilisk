@@ -18,9 +18,11 @@ export function detectDeliverableType(job: any): AgentType {
   }
 
   // Try to get URL from various locations in the response
-  const url = job.deliverableUrl
+  const url = String(
+    job.deliverableUrl
     || job.verificationContext?.deliverable?.url
-    || "";
+    || ""
+  );
 
   if (url) {
     const ext = getExtension(url);
@@ -55,7 +57,7 @@ export function detectDeliverableType(job: any): AgentType {
   }
 
   // Check description for hints
-  const desc = (job.verificationContext?.parentJobDescription || job.description || "").toLowerCase();
+  const desc = String(job.verificationContext?.parentJobDescription || job.description || "").toLowerCase();
   if (desc.includes("api") || desc.includes("code") || desc.includes("build") || desc.includes("typescript")) return "code";
   if (desc.includes("design") || desc.includes("ui") || desc.includes("figma")) return "visual";
   if (desc.includes("documentation") || desc.includes("writing")) return "docs";

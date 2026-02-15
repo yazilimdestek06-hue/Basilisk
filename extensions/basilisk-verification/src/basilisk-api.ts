@@ -47,8 +47,9 @@ export class BasiliskApiClient {
   }
 
   async getVerificationTasks(): Promise<VerificationTask[]> {
-    const res = await this.request<{ verificationTasks: VerificationTask[] }>("/api/verification-tasks");
-    return res.verificationTasks || [];
+    const res = await this.request<{ verificationTasks?: VerificationTask[] }>("/api/verification-tasks");
+    const tasks = res.verificationTasks;
+    return Array.isArray(tasks) ? tasks : [];
   }
 
   async claimTask(taskId: string): Promise<void> {

@@ -73,7 +73,19 @@ export async function startTaskPoller(pluginApi: OpenClawPluginApi) {
           retryCount.set(task.id, (retryCount.get(task.id) || 0) + 1);
         });
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg = String(err);
+      // Auto re-register on 401 (expired or invalid token)
+      if (msg.includes("401")) {
+        console.warn("[task-poller] Got 401 — re-registering agent...");
+        try {
+          const creds = await api.register();
+          console.log(`[task-poller] Re-registered: agent=${creds.agentId}`);
+        } catch (regErr) {
+          console.error("[task-poller] Re-registration failed:", regErr);
+        }
+        return;
+      }
       console.error("[task-poller] Poll error:", err);
     }
   }
