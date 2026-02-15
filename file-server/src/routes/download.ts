@@ -1,6 +1,7 @@
 import { Router, type Router as RouterType } from "express";
 import fs from "node:fs";
 import { findFileById, getFileMeta } from "../storage.js";
+import { verifyDownloadSignature } from "../security.js";
 
 const router: RouterType = Router();
 
@@ -10,6 +11,21 @@ router.get("/files/:fileId", (req, res) => {
   // Prevent path traversal
   if (fileId.includes("..") || fileId.includes("/") || fileId.includes("\\")) {
     res.status(400).json({ error: "Invalid file ID" });
+    return;
+  }
+
+  // Verify signed download URL
+  const sig = req.query.sig as string | undefined;
+  const exp = req.query.exp as string | undefined;
+
+  if (!sig || !exp) {
+    res.status(403).json({ error: "Missing download signature. Use /presign-download to get a signed URL." });
+    return;
+  }
+
+  const expNum = parseInt(exp, 10);
+  if (isNaN(expNum) || !verifyDownloadSignature(fileId, sig, expNum)) {
+    res.status(403).json({ error: "Invalid or expired download signature" });
     return;
   }
 

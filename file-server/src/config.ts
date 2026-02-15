@@ -13,13 +13,15 @@ export const config = {
     "https://basilisk.exchange",
     "http://localhost:3000",
   ] as (string | RegExp)[],
-  maxFileSizeMb: 500,
+  maxFileSizeBytes: 5 * 1024 * 1024 * 1024, // 5 GB
   presignExpiryMs: 60 * 60 * 1000, // 1 hour
+  downloadTokenExpiryMs: 60 * 60 * 1000, // 1 hour
   cleanupMaxAgeDays: 90,
+  approvedFileRetentionMs: 48 * 60 * 60 * 1000, // 48 hours after approval
   rateLimit: {
     uploadWindowMs: 60 * 1000,
     uploadMax: 10,
     downloadWindowMs: 60 * 1000,
-    downloadMax: 100,
+    downloadMax: 30,
   },
 } as const;

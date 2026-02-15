@@ -6,6 +6,8 @@ import { config } from "./config.js";
 import presignRouter from "./routes/presign.js";
 import uploadRouter from "./routes/upload.js";
 import downloadRouter from "./routes/download.js";
+import presignDownloadRouter from "./routes/presign-download.js";
+import approveRouter from "./routes/approve.js";
 import { startCleanupCron } from "./cleanup.js";
 
 const app = express();
@@ -39,6 +41,8 @@ const downloadLimiter = rateLimit({
 app.use(uploadLimiter, presignRouter);
 app.use(uploadLimiter, uploadRouter);
 app.use(downloadLimiter, downloadRouter);
+app.use(uploadLimiter, presignDownloadRouter);
+app.use(approveRouter);
 
 // Health check
 app.get("/health", (_req, res) => {

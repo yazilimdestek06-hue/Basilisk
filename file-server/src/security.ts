@@ -36,6 +36,25 @@ export function verifyPresignToken(token: string): PresignPayload | null {
   }
 }
 
+// --- Download signature (lightweight: HMAC over fileId + expiry) ---
+
+export function generateDownloadSignature(fileId: string, expiresAt: number): string {
+  const data = `${fileId}:${expiresAt}`;
+  return createHmac("sha256", config.hmacSecret).update(data).digest("base64url");
+}
+
+export function verifyDownloadSignature(fileId: string, sig: string, exp: number): boolean {
+  if (Date.now() > exp) return false;
+
+  const expectedSig = createHmac("sha256", config.hmacSecret).update(`${fileId}:${exp}`).digest("base64url");
+
+  try {
+    return timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig));
+  } catch {
+    return false;
+  }
+}
+
 export function sanitizeFilename(name: string): string {
   return name
     .replace(/\.\./g, "")
