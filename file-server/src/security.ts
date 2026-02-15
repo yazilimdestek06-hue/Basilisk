@@ -55,6 +55,18 @@ export function verifyDownloadSignature(fileId: string, sig: string, exp: number
   }
 }
 
+// --- Internal API key auth (for approve, presign-download etc.) ---
+
+export function verifyInternalAuth(authHeader: string | undefined): boolean {
+  if (!authHeader) return false;
+  const expected = `Bearer ${config.internalApiKey}`;
+  try {
+    return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 export function sanitizeFilename(name: string): string {
   return name
     .replace(/\.\./g, "")

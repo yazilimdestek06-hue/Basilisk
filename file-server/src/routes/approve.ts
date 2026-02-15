@@ -1,20 +1,9 @@
 import { Router, type Router as RouterType } from "express";
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { config } from "../config.js";
+import { verifyInternalAuth } from "../security.js";
 import { findFileById, markFileApproved } from "../storage.js";
 
 const router: RouterType = Router();
-
-/** Verify that the request comes from an authorized internal service. */
-function verifyInternalAuth(authHeader: string | undefined): boolean {
-  if (!authHeader) return false;
-  const expected = `Bearer ${config.hmacSecret}`;
-  try {
-    return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected));
-  } catch {
-    return false;
-  }
-}
 
 router.post("/files/:fileId/approve", (req, res) => {
   // Only internal services (task poller, Basilisk API) can call this

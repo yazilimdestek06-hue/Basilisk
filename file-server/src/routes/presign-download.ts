@@ -1,11 +1,16 @@
 import { Router, type Router as RouterType } from "express";
 import { config } from "../config.js";
-import { generateDownloadSignature } from "../security.js";
+import { generateDownloadSignature, verifyInternalAuth } from "../security.js";
 import { findFileById } from "../storage.js";
 
 const router: RouterType = Router();
 
 router.post("/presign-download", (req, res) => {
+  if (!verifyInternalAuth(req.headers.authorization)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
   const { fileId } = req.body as { fileId?: string };
 
   if (!fileId) {

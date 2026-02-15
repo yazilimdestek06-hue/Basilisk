@@ -1,12 +1,34 @@
 import type { OpenClawPluginApi } from "../../src/plugins/types.js";
 import type { AgentType } from "./types.js";
-import { BasiliskApiClient } from "./basilisk-api.js";
+import fs from "node:fs";
+import path from "node:path";
+import { BasiliskApiClient, ApiError } from "./basilisk-api.js";
 import { AgentPool } from "./agent-pool.js";
 import { GatewayHttpClient } from "./gateway-client.js";
 import { detectDeliverableType, getAgentIdForType } from "./task-router.js";
 
 const MAX_RETRIES = 3;
+const RETRY_TTL_MS = 30 * 60 * 1000; // 30 min — entries older than this are purged
 const DEFAULT_GATEWAY_URL = "http://127.0.0.1:18789";
+const CREDENTIALS_FILE = path.join(process.env.HOME || process.env.USERPROFILE || ".", ".basilisk-credentials.json");
+
+function persistCredentials(agentId: string, token: string) {
+  try {
+    fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify({ agentId, token, updatedAt: new Date().toISOString() }));
+    console.log(`[task-poller] Credentials persisted to ${CREDENTIALS_FILE}`);
+  } catch (err) {
+    console.error("[task-poller] Failed to persist credentials:", err);
+  }
+}
+
+function loadPersistedCredentials(): { agentId: string; token: string } | null {
+  try {
+    if (!fs.existsSync(CREDENTIALS_FILE)) return null;
+    const data = JSON.parse(fs.readFileSync(CREDENTIALS_FILE, "utf-8"));
+    if (data.agentId && data.token) return data;
+  } catch { /* ignore */ }
+  return null;
+}
 
 export async function startTaskPoller(pluginApi: OpenClawPluginApi) {
   const config = pluginApi.pluginConfig as {
@@ -40,20 +62,33 @@ export async function startTaskPoller(pluginApi: OpenClawPluginApi) {
     idleTimeoutMs: 300000,
   });
 
-  // Register or restore credentials
+  // Register or restore credentials (env → persisted file → register new)
   const existingAgentId = process.env.BASILISK_AGENT_ID;
   const existingToken = process.env.BASILISK_JWT_TOKEN;
+  const persisted = loadPersistedCredentials();
 
   if (existingAgentId && existingToken) {
     api.setCredentials(existingAgentId, existingToken);
-    console.log(`[task-poller] Using existing credentials: agent=${existingAgentId}`);
+    console.log(`[task-poller] Using env credentials: agent=${existingAgentId}`);
+  } else if (persisted) {
+    api.setCredentials(persisted.agentId, persisted.token);
+    console.log(`[task-poller] Using persisted credentials: agent=${persisted.agentId}`);
   } else {
     console.log("[task-poller] Registering as new agent...");
     const creds = await api.register();
+    persistCredentials(creds.agentId, creds.token);
     console.log(`[task-poller] Registered: agent=${creds.agentId}`);
   }
 
-  const retryCount = new Map<string, number>();
+  const retryCount = new Map<string, { count: number; firstSeen: number }>();
+
+  // Purge stale entries from retryCount every 10 minutes
+  const retryCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [id, entry] of retryCount) {
+      if (now - entry.firstSeen > RETRY_TTL_MS) retryCount.delete(id);
+    }
+  }, 10 * 60 * 1000);
 
   async function pollOnce() {
     try {
@@ -66,20 +101,25 @@ export async function startTaskPoller(pluginApi: OpenClawPluginApi) {
 
       for (const task of unclaimed) {
         // Skip tasks that have exceeded retries
-        if ((retryCount.get(task.id) || 0) >= MAX_RETRIES) continue;
+        const entry = retryCount.get(task.id);
+        if (entry && entry.count >= MAX_RETRIES) continue;
 
         processTask(task).catch((err) => {
           console.error(`[task-poller] Error processing task ${task.id}:`, err);
-          retryCount.set(task.id, (retryCount.get(task.id) || 0) + 1);
+          const prev = retryCount.get(task.id);
+          retryCount.set(task.id, {
+            count: (prev?.count || 0) + 1,
+            firstSeen: prev?.firstSeen || Date.now(),
+          });
         });
       }
     } catch (err: unknown) {
-      const msg = String(err);
       // Auto re-register on 401 (expired or invalid token)
-      if (msg.includes("401")) {
+      if (err instanceof ApiError && err.statusCode === 401) {
         console.warn("[task-poller] Got 401 — re-registering agent...");
         try {
           const creds = await api.register();
+          persistCredentials(creds.agentId, creds.token);
           console.log(`[task-poller] Re-registered: agent=${creds.agentId}`);
         } catch (regErr) {
           console.error("[task-poller] Re-registration failed:", regErr);
@@ -176,6 +216,8 @@ Be thorough. Check every criterion. Provide specific evidence for each pass/fail
   // Return cleanup function
   return () => {
     clearInterval(intervalId);
+    clearInterval(retryCleanupTimer);
+    pool.stop();
     console.log("[task-poller] Stopped");
   };
 }

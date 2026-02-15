@@ -5,7 +5,7 @@ import path from "node:path";
 import multer from "multer";
 import { config } from "../config.js";
 import { verifyPresignToken } from "../security.js";
-import { resolveStoragePath, writeFileMeta } from "../storage.js";
+import { resolveStoragePath, writeFileMeta, indexFile } from "../storage.js";
 
 const upload = multer({
   dest: path.join(config.storagePath, "_tmp"),
@@ -63,7 +63,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
   const fileSize = fs.statSync(destPath).size;
 
-  // Write sidecar metadata
+  // Register in index and write sidecar metadata
+  indexFile(payload.fileId, destPath);
   writeFileMeta(destPath, {
     fileId: payload.fileId,
     jobId: payload.jobId,
@@ -77,7 +78,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     fileId: payload.fileId,
     size: fileSize,
     sha256: actualHash,
-    path: destPath,
   });
 });
 

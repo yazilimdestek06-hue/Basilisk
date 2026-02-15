@@ -11,9 +11,33 @@ export class AgentPool {
   private active: Map<string, { agentType: AgentType; startedAt: number }> = new Map();
   private queue: QueuedTask[] = [];
   private config: PoolConfig;
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(config: PoolConfig) {
     this.config = config;
+    this.startWatchdog();
+  }
+
+  /** Periodically check for slots that exceed idleTimeoutMs and auto-release them. */
+  private startWatchdog() {
+    const checkInterval = Math.max(30_000, Math.floor((this.config.idleTimeoutMs || 300_000) / 4));
+    this.watchdogTimer = setInterval(() => {
+      const now = Date.now();
+      const timeout = this.config.idleTimeoutMs || 300_000;
+      for (const [slotId, slot] of this.active) {
+        if (now - slot.startedAt > timeout) {
+          console.warn(`[agent-pool] Watchdog: slot ${slotId} exceeded ${timeout}ms — force-releasing`);
+          this.releaseSlot(slotId);
+        }
+      }
+    }, checkInterval);
+  }
+
+  stop() {
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
   }
 
   private countByType(agentType: AgentType): number {

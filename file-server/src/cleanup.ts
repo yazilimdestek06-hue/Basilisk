@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import cron from "node-cron";
 import { config } from "./config.js";
-import { findExpiredApprovedFiles } from "./storage.js";
+import { findExpiredApprovedFiles, removeFromIndex } from "./storage.js";
 
 function cleanOldFiles(dir: string, maxAgeMs: number): number {
   let deleted = 0;
@@ -42,8 +42,10 @@ function cleanApprovedFiles(): number {
 
   for (const filePath of expired) {
     try {
-      // Delete the data file
+      // Delete the data file and remove from index
       if (fs.existsSync(filePath)) {
+        const fileId = path.basename(filePath).replace(/\.[^.]+$/, "");
+        removeFromIndex(fileId);
         fs.unlinkSync(filePath);
         console.log(`[cleanup] Deleted (approved 48h): ${filePath}`);
         deleted++;

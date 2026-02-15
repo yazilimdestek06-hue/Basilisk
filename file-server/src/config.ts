@@ -8,6 +8,7 @@ export const config = {
   port: parseInt(process.env.FILE_SERVER_PORT || "4000", 10),
   storagePath: process.env.BASILISK_FILE_STORAGE || "D:/basilisk-files",
   hmacSecret: process.env.FILE_SERVER_HMAC_SECRET || randomBytes(32).toString("hex"),
+  internalApiKey: process.env.FILE_SERVER_INTERNAL_API_KEY || randomBytes(32).toString("hex"),
   corsOrigins: [
     /\.basilisk\.exchange$/,
     "https://basilisk.exchange",

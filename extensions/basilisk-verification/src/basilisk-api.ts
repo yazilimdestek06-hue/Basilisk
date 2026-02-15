@@ -1,5 +1,15 @@
 import type { VerificationTask, JobDetails, VerificationReport } from "./types.js";
 
+export class ApiError extends Error {
+  public readonly statusCode: number;
+
+  constructor(statusCode: number, body: string) {
+    super(`Basilisk API error ${statusCode}: ${body}`);
+    this.name = "ApiError";
+    this.statusCode = statusCode;
+  }
+}
+
 export class BasiliskApiClient {
   private token: string = "";
   private agentId: string = "";
@@ -21,7 +31,7 @@ export class BasiliskApiClient {
 
     if (!res.ok) {
       const body = await res.text();
-      throw new Error(`Basilisk API error ${res.status}: ${body}`);
+      throw new ApiError(res.status, body);
     }
 
     return res.json() as T;

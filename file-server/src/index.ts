@@ -41,7 +41,7 @@ const downloadLimiter = rateLimit({
 app.use(uploadLimiter, presignRouter);
 app.use(uploadLimiter, uploadRouter);
 app.use(downloadLimiter, downloadRouter);
-app.use(uploadLimiter, presignDownloadRouter);
+app.use(downloadLimiter, presignDownloadRouter);
 app.use(approveRouter);
 
 // Health check
